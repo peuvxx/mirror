@@ -1,0 +1,68 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body, html {
+    width: 100vw;
+    height: 100vh;
+    background: rgb(0, 0, 0);
+    overflow: hidden;
+    cursor: none;
+  }
+  
+  #scene {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    perspective: 2000px;
+  }
+  
+  #camera-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vmin;
+    height: 100vmin;
+    transform: translate(-50%, -50%);
+    transform-style: preserve-3d;
+    transition: transform 0.3s ease;
+  }
+  
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    
+    /* 마스크 적용 */
+    -webkit-mask-image: url('mirrorframe.svg');
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+  
+    mask-image: url('mirrorframe.svg');
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+  }
+  
+  
+  #crack-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  
+  #hammer {
+    position: absolute;
+    width: 200px;
+    transform-origin: bottom left; /* ✅ 망치 머리 쪽 기준 */
+    pointer-events: none;
+    z-index: 999;
+    transform: rotate(0deg);
+  }
+  
