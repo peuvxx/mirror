@@ -3,127 +3,97 @@ const canvas = document.getElementById('crack-canvas');
 const ctx = canvas.getContext('2d');
 const hammer = document.getElementById('hammer');
 const cameraWrapper = document.getElementById('camera-wrapper');
-const cam = document.getElementById('cam-wrapper'); 
-
+const cam = document.getElementById('camera-wrapper'); // 수정됨
 
 let hammerIndex = 0;
 let hitCount = 0;
 let isBroken = false;
 
-// 🟡 캠 연결
+// 캠 연결
 navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
   video.srcObject = stream;
 });
 
-
-let rotationX = 0;
-let rotationY = 0;
-let velocityX = 0;
-let velocityY = 0;
-let isHitAnimating = false;
-
-// 🟥 클릭 이벤트
-document.addEventListener('click', e => {
-    if (isBroken) return;
+// 프레임 캡쳐 함수
+async function captureFrame() {
+    const wrapper = document.getElementById('camera-wrapper');
+    const canvas = await html2canvas(wrapper, {
+      backgroundColor: null // 투명도 유지
+    });
+    return canvas.toDataURL('image/png');
+  }
   
-    const { x, y } = getClickRelativePosition(e);
-    swingHammer();
-    tiltCamera(x, y);
-    drawCrack(x, y);
+
+// 캠 깨지는 효과
+async function breakReality() {
+    const wrapper = document.getElementById('camera-wrapper');
+    const captured = await captureFrame(); // 프레임이 보이는 상태에서 캡쳐
   
-    hitCount++;
-    if (hitCount >= 5) {
-      breakCamera();
+    const shardCount = Math.floor(Math.random() * 20) + 20;
+  
+    video.style.display = 'none'; // 캡쳐 끝난 후에 숨겨야 함
+  
+    for (let i = 0; i < shardCount; i++) {
+      const shard = document.createElement('canvas');
+      shard.width = window.innerWidth;
+      shard.height = window.innerHeight;
+      shard.className = 'shard-canvas';
+      shard.style.position = 'absolute';
+      shard.style.left = '0';
+      shard.style.top = '0';
+      shard.style.zIndex = 100;
+  
+      const shardCtx = shard.getContext('2d');
+      const centerX = Math.random() * window.innerWidth;
+      const centerY = Math.random() * window.innerHeight;
+      const sides = 3 + Math.floor(Math.random() * 4);
+      const angleStart = Math.random() * Math.PI * 2;
+  
+      shardCtx.beginPath();
+      for (let j = 0; j <= sides; j++) {
+        const angle = angleStart + j * (2 * Math.PI / sides);
+        const radius = 100 + Math.random() * 150;
+        const px = centerX + Math.cos(angle) * radius;
+        const py = centerY + Math.sin(angle) * radius;
+        if (j === 0) shardCtx.moveTo(px, py);
+        else shardCtx.lineTo(px, py);
+      }
+      shardCtx.closePath();
+      shardCtx.clip();
+  
+      const img = new Image();
+      img.onload = () => shardCtx.drawImage(img, 0, 0, shard.width, shard.height);
+      img.src = captured;
+  
+      wrapper.appendChild(shard);
+  
+      setTimeout(() => {
+        shard.style.transition = 'transform 2.8s ease, opacity 2.8s ease';
+        shard.style.transform = `translateY(${1000 + Math.random() * 800}px)`;
+        shard.style.opacity = 0;
+      }, 50);
     }
-  });
-
-function hitCamera(clickX, clickY) {
-  const rect = cam.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-
-  const dx = clickX - centerX;
-  const dy = clickY - centerY;
-
-  // 클릭한 위치에 따라 힘을 줌
-  velocityX = dy * 0.002;
-  velocityY = -dx * 0.002;
-
-  if (!isHitAnimating) {
-    isHitAnimating = true;
-    animateSwing();
-  }
-}
-
-function animateSwing() {
-  const stiffness = 1;   // 복원력
-  const damping = 0.2;      // 감속
-
-  rotationX += velocityX;
-  rotationY += velocityY;
-
-  // 복원력 (중심으로 돌아오려는 힘)
-  velocityX -= rotationX * stiffness;
-  velocityY -= rotationY * stiffness;
-
-  // 감속
-  velocityX *= damping;
-  velocityY *= damping;
-
-  cam.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
-
-  if (Math.abs(velocityX) > 0.001 || Math.abs(velocityY) > 0.001) {
-    requestAnimationFrame(animateSwing);
-  } else {
-    isHitAnimating = false;
-  }
-}
-
-
-
-// 🔵 크기 조정
-function resize() {
-  canvas.width = cameraWrapper.clientWidth;
-  canvas.height = cameraWrapper.clientHeight;
-}
-window.addEventListener('resize', resize);
-resize();
-
-// 🔨 커서 따라다니기
-document.addEventListener('mousemove', e => {
-  hammer.style.left = e.pageX - 90 + 'px';
-  hammer.style.top = e.pageY - 50 + 'px';
-});
-
-// ⬅️ 스페이스로 망치 변경
-document.addEventListener('keydown', e => {
-  if (e.code === 'Space') {
-    hammerIndex = (hammerIndex + 1) % 5;
-    hammer.src = `hammer${hammerIndex + 1}.svg`;
-  }
-});
-
-
-
-document.addEventListener('mousemove', e => {
-    hammer.style.left = e.pageX + 'px';
-    hammer.style.top = e.pageY + 'px';
-  });
-  
-
-// 🛠️ 망치 휘두르기 애니메이션
-function swingHammer() {
-    hammer.style.transition = 'transform 0.15s ease';
-    hammer.style.transform = 'rotate(-50deg)';
   
     setTimeout(() => {
-      hammer.style.transform = 'rotate(0deg)';
-    }, 170);
+      document.querySelectorAll('.shard-canvas').forEach(c => c.remove());
+      video.style.display = 'block';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hitCount = 0;
+      isBroken = false;
+    }, 3000);
   }
   
-  
-  
-// 🌀 캠 기울이기
+
+// 망치 휘두르기
+function swingHammer() {
+  hammer.style.transition = 'transform 0.15s ease';
+  hammer.style.transform = 'rotate(-50deg)';
+  setTimeout(() => {
+    hammer.style.transform = 'rotate(0deg)';
+  }, 170);
+}
+
+// 캠 기울이기
 function tiltCamera(x, y) {
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
@@ -142,7 +112,7 @@ function tiltCamera(x, y) {
   }, 100);
 }
 
-// 🧠 클릭 상대 좌표
+// 클릭 상대 좌표
 function getClickRelativePosition(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -151,7 +121,7 @@ function getClickRelativePosition(e) {
   };
 }
 
-// ⚡ 크랙 그리기
+// 크랙 그리기
 function drawCrack(x, y) {
   const startCount = Math.floor(Math.random() * 5) + 7;
   const maxDepth = 2;
@@ -182,13 +152,40 @@ function drawCrack(x, y) {
   }
 }
 
-// 맨 아래에 넣기 (모든 함수 정의 아래에)
-document.addEventListener('DOMContentLoaded', () => {
-    cam.addEventListener('click', e => {
-      swingHammer(); // 망치 모션
-      drawCrack(e.pageX, e.pageY); // 크랙
-      hitCamera(e.pageX, e.pageY); // 물리 회전
-    });
-  });
-  
-  
+// 크기 동기화
+function resize() {
+  canvas.width = cameraWrapper.clientWidth;
+  canvas.height = cameraWrapper.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// 스페이스로 망치 변경
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    hammerIndex = (hammerIndex + 1) % 5;
+    hammer.src = `hammer${hammerIndex + 1}.svg`;
+  }
+});
+
+// 커서 팔로잉
+document.addEventListener('mousemove', e => {
+  hammer.style.left = e.pageX + 'px';
+  hammer.style.top = e.pageY + 'px';
+});
+
+// 클릭 이벤트
+document.addEventListener('click', e => {
+  if (isBroken) return;
+
+  const { x, y } = getClickRelativePosition(e);
+  swingHammer();
+  tiltCamera(x, y);
+  drawCrack(x, y);
+
+  hitCount++;
+  if (hitCount >= 5) {
+    isBroken = true;
+    breakReality();
+  }
+});
