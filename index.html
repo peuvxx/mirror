@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mirror breaker</title>
+  <title>mirror</title>
   <link rel="stylesheet" href="style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
 </head>
 <body>
   <div id="scene">
     <div id="camera-wrapper">
       <video id="video" autoplay muted playsinline></video>
       <canvas id="crack-canvas"></canvas>
+      <canvas id="face-debug" width="640" height="480" style="position:absolute; top:0; left:0; z-index:1000;"></canvas>
     </div>
     <img id="hammer" src="hammer1.svg" />
   </div>

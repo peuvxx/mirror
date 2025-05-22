@@ -3,86 +3,153 @@ const canvas = document.getElementById('crack-canvas');
 const ctx = canvas.getContext('2d');
 const hammer = document.getElementById('hammer');
 const cameraWrapper = document.getElementById('camera-wrapper');
-const cam = document.getElementById('camera-wrapper'); // 수정됨
+const cam = document.getElementById('camera-wrapper');
+
+// 얼굴 인식 디버깅용 캔버스
+const debugCanvas = document.getElementById('face-debug');
+const debugCtx = debugCanvas.getContext('2d');
 
 let hammerIndex = 0;
 let hitCount = 0;
 let isBroken = false;
 
+// ✅ video 메타데이터 로드 후 debugCanvas 해상도 동기화
+function syncDebugCanvasSize() {
+  debugCanvas.width = video.videoWidth;
+  debugCanvas.height = video.videoHeight;
+}
+
 // 캠 연결
 navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
   video.srcObject = stream;
+
+  video.addEventListener('loadedmetadata', () => {
+    syncDebugCanvasSize();     // ✅ 비디오 크기 기준으로 디버그 캔버스 맞춤
+    loadFaceModel();           // 모델은 metadata 로드 후 불러야 크기가 정확
+  });
 });
 
 // 프레임 캡쳐 함수
 async function captureFrame() {
-    const wrapper = document.getElementById('camera-wrapper');
-    const canvas = await html2canvas(wrapper, {
-      backgroundColor: null // 투명도 유지
-    });
-    return canvas.toDataURL('image/png');
-  }
-  
+  const wrapper = document.getElementById('camera-wrapper');
+  const canvas = await html2canvas(wrapper, {
+    backgroundColor: null
+  });
+  return canvas.toDataURL('image/png');
+}
 
-// 캠 깨지는 효과
-async function breakReality() {
-    const wrapper = document.getElementById('camera-wrapper');
-    const captured = await captureFrame(); // 프레임이 보이는 상태에서 캡쳐
-  
-    const shardCount = Math.floor(Math.random() * 20) + 20;
-  
-    video.style.display = 'none'; // 캡쳐 끝난 후에 숨겨야 함
-  
-    for (let i = 0; i < shardCount; i++) {
-      const shard = document.createElement('canvas');
-      shard.width = window.innerWidth;
-      shard.height = window.innerHeight;
-      shard.className = 'shard-canvas';
-      shard.style.position = 'absolute';
-      shard.style.left = '0';
-      shard.style.top = '0';
-      shard.style.zIndex = 100;
-  
-      const shardCtx = shard.getContext('2d');
-      const centerX = Math.random() * window.innerWidth;
-      const centerY = Math.random() * window.innerHeight;
-      const sides = 3 + Math.floor(Math.random() * 4);
-      const angleStart = Math.random() * Math.PI * 2;
-  
-      shardCtx.beginPath();
-      for (let j = 0; j <= sides; j++) {
-        const angle = angleStart + j * (2 * Math.PI / sides);
-        const radius = 100 + Math.random() * 150;
-        const px = centerX + Math.cos(angle) * radius;
-        const py = centerY + Math.sin(angle) * radius;
-        if (j === 0) shardCtx.moveTo(px, py);
-        else shardCtx.lineTo(px, py);
+// 얼굴인식 관련 변수
+let prevAngle = 0;
+let faceInterval;
+
+async function loadFaceModel() {
+  await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+  await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models');
+  startFaceTracking();
+}
+
+function startFaceTracking() {
+  faceInterval = setInterval(async () => {
+    const result = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks(true);
+
+    debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+
+    if (result) {
+      console.log("✅성공");
+
+      const dims = faceapi.matchDimensions(debugCanvas, video, true);
+      const resizedResult = faceapi.resizeResults(result, dims);
+
+      faceapi.draw.drawDetections(debugCanvas, resizedResult);
+      faceapi.draw.drawFaceLandmarks(debugCanvas, resizedResult);
+      console.log("랜드마크 그리기 실행");
+
+      const landmarks = result.landmarks;
+      const nose = landmarks.getNose();
+      const leftEye = landmarks.getLeftEye();
+      const rightEye = landmarks.getRightEye();
+
+      const eyeDx = rightEye[0].x - leftEye[3].x;
+      const noseDx = nose[3].x - (leftEye[3].x + eyeDx / 2);
+      const angle = noseDx / eyeDx;
+
+      if (angle - prevAngle > 0.15) {
+        changeHammer(+1);
+        prevAngle = angle;
+      } else if (angle - prevAngle < -0.15) {
+        changeHammer(-1);
+        prevAngle = angle;
       }
-      shardCtx.closePath();
-      shardCtx.clip();
-  
-      const img = new Image();
-      img.onload = () => shardCtx.drawImage(img, 0, 0, shard.width, shard.height);
-      img.src = captured;
-  
-      wrapper.appendChild(shard);
-  
-      setTimeout(() => {
-        shard.style.transition = 'transform 2.8s ease, opacity 2.8s ease';
-        shard.style.transform = `translateY(${1000 + Math.random() * 800}px)`;
-        shard.style.opacity = 0;
-      }, 50);
+    } else {
+      console.log("❌실패");
     }
-  
+  }, 500);
+}
+
+function changeHammer(direction) {
+  hammerIndex = (hammerIndex + direction + 5) % 5;
+  hammer.src = `hammer${hammerIndex + 1}.svg`;
+}
+
+async function breakReality() {
+  const wrapper = document.getElementById('camera-wrapper');
+  const captured = await captureFrame();
+  const shardCount = Math.floor(Math.random() * 20) + 20;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  video.style.display = 'none';
+
+  for (let i = 0; i < shardCount; i++) {
+    const shard = document.createElement('canvas');
+    shard.width = window.innerWidth;
+    shard.height = window.innerHeight;
+    shard.className = 'shard-canvas';
+    shard.style.position = 'absolute';
+    shard.style.left = '0';
+    shard.style.top = '0';
+    shard.style.zIndex = 3;
+
+    const shardCtx = shard.getContext('2d');
+    const centerX = Math.random() * window.innerWidth;
+    const centerY = Math.random() * window.innerHeight;
+    const sides = 3 + Math.floor(Math.random() * 4);
+    const angleStart = Math.random() * Math.PI * 2;
+
+    shardCtx.beginPath();
+    for (let j = 0; j <= sides; j++) {
+      const angle = angleStart + j * (2 * Math.PI / sides);
+      const radius = 100 + Math.random() * 150;
+      const px = centerX + Math.cos(angle) * radius;
+      const py = centerY + Math.sin(angle) * radius;
+      if (j === 0) shardCtx.moveTo(px, py);
+      else shardCtx.lineTo(px, py);
+    }
+    shardCtx.closePath();
+    shardCtx.clip();
+
+    const img = new Image();
+    img.onload = () => shardCtx.drawImage(img, 0, 0, shard.width, shard.height);
+    img.src = captured;
+
+    wrapper.appendChild(shard);
+
     setTimeout(() => {
-      document.querySelectorAll('.shard-canvas').forEach(c => c.remove());
-      video.style.display = 'block';
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      hitCount = 0;
-      isBroken = false;
-    }, 3000);
+      shard.style.transition = 'transform 2.8s ease, opacity 2.8s ease';
+      shard.style.transform = `translateY(${1000 + Math.random() * 800}px)`;
+      shard.style.opacity = 0;
+    }, 50);
   }
-  
+
+  setTimeout(() => {
+    document.querySelectorAll('.shard-canvas').forEach(c => c.remove());
+    video.style.display = 'block';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hitCount = 0;
+    isBroken = false;
+  }, 3000);
+}
 
 // 망치 휘두르기
 function swingHammer() {
@@ -160,7 +227,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// 스페이스로 망치 변경
+// 키보드로 망치 바꾸기
 document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     hammerIndex = (hammerIndex + 1) % 5;
@@ -168,13 +235,13 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// 커서 팔로잉
+// 커서 따라가기
 document.addEventListener('mousemove', e => {
   hammer.style.left = e.pageX + 'px';
   hammer.style.top = e.pageY + 'px';
 });
 
-// 클릭 이벤트
+// 클릭 시 크랙 및 애니메이션
 document.addEventListener('click', e => {
   if (isBroken) return;
 
