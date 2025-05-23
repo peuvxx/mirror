@@ -1,3 +1,4 @@
+// ✅ Mirror Breaker - 최종 통합 코드
 const video = document.getElementById('video');
 const canvas = document.getElementById('crack-canvas');
 const ctx = canvas.getContext('2d');
@@ -5,7 +6,6 @@ const hammer = document.getElementById('hammer');
 const cameraWrapper = document.getElementById('camera-wrapper');
 const cam = document.getElementById('camera-wrapper');
 
-// 얼굴 인식 디버깅용 캔버스
 const debugCanvas = document.getElementById('face-debug');
 const debugCtx = debugCanvas.getContext('2d');
 
@@ -13,38 +13,32 @@ let hammerIndex = 0;
 let hitCount = 0;
 let isBroken = false;
 
-// ✅ video 메타데이터 로드 후 debugCanvas 해상도 동기화
 function syncDebugCanvasSize() {
   debugCanvas.width = video.videoWidth;
   debugCanvas.height = video.videoHeight;
 }
 
-// 캠 연결
 navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
   video.srcObject = stream;
 
   video.addEventListener('loadedmetadata', () => {
-    syncDebugCanvasSize();     // ✅ 비디오 크기 기준으로 디버그 캔버스 맞춤
-    loadFaceModel();           // 모델은 metadata 로드 후 불러야 크기가 정확
+    syncDebugCanvasSize();
+    loadFaceModel();
   });
 });
 
-// 프레임 캡쳐 함수
 async function captureFrame() {
   const wrapper = document.getElementById('camera-wrapper');
-  const canvas = await html2canvas(wrapper, {
-    backgroundColor: null
-  });
+  const canvas = await html2canvas(wrapper, { backgroundColor: null });
   return canvas.toDataURL('image/png');
 }
 
-// 얼굴인식 관련 변수
 let prevAngle = 0;
 let faceInterval;
 
 async function loadFaceModel() {
-  await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-  await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models');
+  await faceapi.nets.tinyFaceDetector.loadFromUri('models');
+  await faceapi.nets.faceLandmark68TinyNet.loadFromUri('models');
   startFaceTracking();
 }
 
@@ -57,39 +51,26 @@ function startFaceTracking() {
     debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
 
     if (result) {
-      console.log("✅성공");
-
       const dims = faceapi.matchDimensions(debugCanvas, video, true);
       const resizedResult = faceapi.resizeResults(result, dims);
 
       const box = resizedResult.detection.box;
       const score = resizedResult.detection.score;
-      
 
-      // ✅ 박스 그리기
       debugCtx.strokeStyle = '#00f';
       debugCtx.lineWidth = 3;
       debugCtx.strokeRect(box.x, box.y, box.width, box.height);
-      
 
-      // ✅ 점수에 따라 텍스트 설정
       let label = '';
-      if (score > 0.9) {
-        label = 'who are you?';
-      } else if (score > 0.7) {
-        label = 'who are you?';
-      } else {
-        label = 'who are you?';
-      }
-      
-      
-      // ✅ 텍스트 그리기
+      if (score > 0.9) label = 'who are you?';
+      else if (score > 0.7) label = 'who are you?';
+      else label = 'who are you?';
+
       debugCtx.fillStyle = 'blue';
       debugCtx.font = '20px sans-serif';
       debugCtx.fillText(label, box.x, box.y - 10);
-      
+
       faceapi.draw.drawFaceLandmarks(debugCanvas, resizedResult);
-      console.log("랜드마크 그리기 실행");
 
       const landmarks = result.landmarks;
       const nose = landmarks.getNose();
@@ -107,8 +88,6 @@ function startFaceTracking() {
         changeHammer(-1);
         prevAngle = angle;
       }
-    } else {
-      console.log("❌실패");
     }
   }, 500);
 }
@@ -176,7 +155,6 @@ async function breakReality() {
   }, 3000);
 }
 
-// 망치 휘두르기
 function swingHammer() {
   hammer.style.transition = 'transform 0.15s ease';
   hammer.style.transform = 'rotate(-50deg)';
@@ -185,7 +163,6 @@ function swingHammer() {
   }, 170);
 }
 
-// 캠 기울이기
 function tiltCamera(x, y) {
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
@@ -204,7 +181,6 @@ function tiltCamera(x, y) {
   }, 100);
 }
 
-// 클릭 상대 좌표
 function getClickRelativePosition(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -213,7 +189,6 @@ function getClickRelativePosition(e) {
   };
 }
 
-// 크랙 그리기
 function drawCrack(x, y) {
   const startCount = Math.floor(Math.random() * 5) + 7;
   const maxDepth = 2;
@@ -244,7 +219,6 @@ function drawCrack(x, y) {
   }
 }
 
-// 크기 동기화
 function resize() {
   canvas.width = cameraWrapper.clientWidth;
   canvas.height = cameraWrapper.clientHeight;
@@ -252,9 +226,9 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// 키보드로 망치 바꾸기
+// 🖱️ 메인 클릭 이벤트 (크랙 + 망치 + 깨짐)
 document.addEventListener('click', async e => {
-  swingHammer(); // 무조건 휘두름
+  swingHammer();
 
   if (!isBroken) {
     const { x, y } = getClickRelativePosition(e);
@@ -267,30 +241,12 @@ document.addEventListener('click', async e => {
       await breakReality();
     }
   } else {
-    // 이미 깨졌으면 카운트/크랙은 무시하고 망치만 바꾸기
     changeHammer(1);
   }
 });
 
-
-// 커서 따라가기
-document.addEventListener('mousemove', e => {
-  hammer.style.left = e.pageX + 'px';
-  hammer.style.top = e.pageY + 'px';
-});
-
-// 클릭 시 크랙 및 애니메이션
-document.addEventListener('click', e => {
-  if (isBroken) return;
-
-  const { x, y } = getClickRelativePosition(e);
-  swingHammer();
-  tiltCamera(x, y);
-  drawCrack(x, y);
-
-  hitCount++;
-  if (hitCount >= 5) {
-    isBroken = true;
-    breakReality();
-  }
-});
+// 🐭 커서 따라다니기
+  document.addEventListener('mousemove', e => {
+    hammer.style.left = e.pageX + 'px';
+    hammer.style.top = e.pageY + 'px';
+  });
