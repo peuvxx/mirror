@@ -62,7 +62,30 @@ function startFaceTracking() {
       const dims = faceapi.matchDimensions(debugCanvas, video, true);
       const resizedResult = faceapi.resizeResults(result, dims);
 
-      faceapi.draw.drawDetections(debugCanvas, resizedResult);
+      const box = resizedResult.detection.box;
+      const score = resizedResult.detection.score;
+      
+      
+      // ✅ 박스 그리기
+      debugCtx.strokeStyle = '#00f';
+      debugCtx.lineWidth = 3;
+      debugCtx.strokeRect(box.x, box.y, box.width, box.height);
+      
+      // ✅ 점수에 따라 텍스트 설정
+      let label = '';
+      if (score > 0.9) {
+        label = 'who are you?';
+      } else if (score > 0.7) {
+        label = 'who are you?';
+      } else {
+        label = 'who are you?';
+      }
+      
+      // ✅ 텍스트 그리기
+      debugCtx.fillStyle = 'blue';
+      debugCtx.font = '20px sans-serif';
+      debugCtx.fillText(label, box.x, box.y - 10);
+      
       faceapi.draw.drawFaceLandmarks(debugCanvas, resizedResult);
       console.log("랜드마크 그리기 실행");
 
@@ -228,12 +251,25 @@ window.addEventListener('resize', resize);
 resize();
 
 // 키보드로 망치 바꾸기
-document.addEventListener('keydown', e => {
-  if (e.code === 'Space') {
-    hammerIndex = (hammerIndex + 1) % 5;
-    hammer.src = `hammer${hammerIndex + 1}.svg`;
+document.addEventListener('click', async e => {
+  swingHammer(); // 무조건 휘두름
+
+  if (!isBroken) {
+    const { x, y } = getClickRelativePosition(e);
+    tiltCamera(x, y);
+    drawCrack(x, y);
+
+    hitCount++;
+    if (hitCount >= 5) {
+      isBroken = true;
+      await breakReality();
+    }
+  } else {
+    // 이미 깨졌으면 카운트/크랙은 무시하고 망치만 바꾸기
+    changeHammer(1);
   }
 });
+
 
 // 커서 따라가기
 document.addEventListener('mousemove', e => {
