@@ -54,11 +54,10 @@ body, html {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 3;
+  z-index: 9999; /* 캠, 프레임 위로 올라오게 */
   pointer-events: none;
 }
+
 
 #hammer {
   position: absolute;

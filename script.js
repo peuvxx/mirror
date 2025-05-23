@@ -65,12 +65,13 @@ function startFaceTracking() {
       const box = resizedResult.detection.box;
       const score = resizedResult.detection.score;
       
-      
+
       // ✅ 박스 그리기
       debugCtx.strokeStyle = '#00f';
       debugCtx.lineWidth = 3;
       debugCtx.strokeRect(box.x, box.y, box.width, box.height);
       
+
       // ✅ 점수에 따라 텍스트 설정
       let label = '';
       if (score > 0.9) {
@@ -80,6 +81,7 @@ function startFaceTracking() {
       } else {
         label = 'who are you?';
       }
+      
       
       // ✅ 텍스트 그리기
       debugCtx.fillStyle = 'blue';
