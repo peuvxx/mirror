@@ -11,7 +11,7 @@
       }
 
       .cls-2 {
-        fill: #929497;
+        fill:rgb(255, 255, 255);
       }
     </style>
   </defs>

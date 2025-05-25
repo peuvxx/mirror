@@ -62,7 +62,7 @@ function startFaceTracking() {
       debugCtx.strokeRect(box.x, box.y, box.width, box.height);
 
       let label = '';
-      if (score > 0.9) label = 'who are you?';
+      if (score > 0.9) label = 'Is this real?';
       else if (score > 0.7) label = 'who are you?';
       else label = 'who are you?';
 
