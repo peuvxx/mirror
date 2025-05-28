@@ -1,17 +1,17 @@
-// ✅ Mirror Breaker - 최종 통합 코드
+// ✅ Mirror Breaker - 최종 통합 수정본 (망치 5개 전환 고침)
 const video = document.getElementById('video');
 const canvas = document.getElementById('crack-canvas');
 const ctx = canvas.getContext('2d');
 const hammer = document.getElementById('hammer');
 const cameraWrapper = document.getElementById('camera-wrapper');
-const cam = document.getElementById('camera-wrapper');
-
 const debugCanvas = document.getElementById('face-debug');
 const debugCtx = debugCanvas.getContext('2d');
 
 let hammerIndex = 0;
 let hitCount = 0;
 let isBroken = false;
+let isTracking = true;
+const TOTAL_HAMMERS = 5;
 
 function syncDebugCanvasSize() {
   debugCanvas.width = video.videoWidth;
@@ -20,7 +20,6 @@ function syncDebugCanvasSize() {
 
 navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
   video.srcObject = stream;
-
   video.addEventListener('loadedmetadata', () => {
     syncDebugCanvasSize();
     loadFaceModel();
@@ -44,6 +43,8 @@ async function loadFaceModel() {
 
 function startFaceTracking() {
   faceInterval = setInterval(async () => {
+    if (!isTracking) return;
+
     const result = await faceapi
       .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
       .withFaceLandmarks(true);
@@ -61,14 +62,15 @@ function startFaceTracking() {
       debugCtx.lineWidth = 3;
       debugCtx.strokeRect(box.x, box.y, box.width, box.height);
 
-      let label = '';
-      if (score > 0.9) label = 'Is this real?';
-      else if (score > 0.7) label = 'who are you?';
-      else label = 'who are you?';
+      let label = score > 0.9 ? 'Is this real?' : 'who are you?';
 
       debugCtx.fillStyle = 'blue';
       debugCtx.font = '20px sans-serif';
-      debugCtx.fillText(label, box.x, box.y - 10);
+      debugCtx.save();
+      debugCtx.translate(debugCanvas.width, 0);
+      debugCtx.scale(-1, 1);
+      debugCtx.fillText(label, debugCanvas.width - box.x, box.y - 10);
+      debugCtx.restore();
 
       faceapi.draw.drawFaceLandmarks(debugCanvas, resizedResult);
 
@@ -93,8 +95,9 @@ function startFaceTracking() {
 }
 
 function changeHammer(direction) {
-  hammerIndex = (hammerIndex + direction + 5) % 5;
+  hammerIndex = (hammerIndex + direction + TOTAL_HAMMERS) % TOTAL_HAMMERS;
   hammer.src = `hammer${hammerIndex + 1}.svg`;
+  console.log('🔨 hammer changed:', hammerIndex + 1);
 }
 
 async function breakReality() {
@@ -104,6 +107,8 @@ async function breakReality() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   video.style.display = 'none';
+  debugCanvas.style.display = 'none';
+  isTracking = false;
 
   for (let i = 0; i < shardCount; i++) {
     const shard = document.createElement('canvas');
@@ -149,9 +154,14 @@ async function breakReality() {
   setTimeout(() => {
     document.querySelectorAll('.shard-canvas').forEach(c => c.remove());
     video.style.display = 'block';
+    debugCanvas.style.display = 'block';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     hitCount = 0;
     isBroken = false;
+    isTracking = true;
+
+    changeHammer(1);
+
   }, 3000);
 }
 
@@ -226,7 +236,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// 🖱️ 메인 클릭 이벤트 (크랙 + 망치 + 깨짐)
+// 🖱️ 클릭 이벤트
 document.addEventListener('click', async e => {
   swingHammer();
 
@@ -245,8 +255,8 @@ document.addEventListener('click', async e => {
   }
 });
 
-// 🐭 커서 따라다니기
-  document.addEventListener('mousemove', e => {
-    hammer.style.left = e.pageX + 'px';
-    hammer.style.top = e.pageY + 'px';
-  });
+// 🐭 망치 따라다니기
+document.addEventListener('mousemove', e => {
+  hammer.style.left = e.pageX + 'px';
+  hammer.style.top = e.pageY + 'px';
+});
